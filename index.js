@@ -18,10 +18,18 @@ app.use(
   cors({
     origin: (origin, cb) => {
       if (!origin) return cb(null, true); // Postman / curl / SSR
+      
+      // Autoriser toutes les URLs Vercel (production + previews)
+      if (origin && (origin.includes('.vercel.app') || origin.includes('localhost:3000'))) {
+        return cb(null, true);
+      }
+      
+      // Vérifier la whitelist configurée
       if (!allowedOrigins.length && process.env.NODE_ENV !== 'production') {
         return cb(null, true);
       }
       if (allowedOrigins.includes(origin)) return cb(null, true);
+      
       return cb(new Error(`CORS blocked for origin: ${origin}`));
     },
     credentials: true,
