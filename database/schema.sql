@@ -112,7 +112,8 @@ CREATE INDEX IF NOT EXISTS idx_propositions_created_at ON propositions(created_a
 
 ALTER TABLE IF EXISTS propositions
   ADD COLUMN IF NOT EXISTS horaires JSONB DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS equipements JSONB DEFAULT '[]'::jsonb;
+  ADD COLUMN IF NOT EXISTS equipements JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb; -- Ajout du champ images pour compatibilité avec Flutter
 
 -- Table des signalements
 CREATE TABLE IF NOT EXISTS signalements (

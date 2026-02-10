@@ -72,6 +72,7 @@ app.use('/api/zones', require('./routes/zones')); // Gestion des zones géograph
 app.use('/api/audit', require('./routes/audit')); // Logs d'audit
 app.use('/api/profile', require('./routes/profile')); // Profils utilisateurs
 app.use('/api/notifications', require('./routes/notifications')); // Push web (FCM)
+app.use('/api/avis', require('./routes/avis')); // Avis et commentaires
 
 const PORT = process.env.PORT || 5000;
 

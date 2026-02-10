@@ -122,16 +122,29 @@ router.post('/', auth, adminOnly, async (req, res) => {
   }
 });
 
-// Mettre à jour une infrastructure
+// Mettre à jour une infrastructure — toutes les modifications sont persistées en base (nom, type, localisation, contact, photos, etc.)
 router.put('/:id', auth, adminOnly, async (req, res) => {
   try {
-    // Récupérer l'infrastructure avant la mise à jour pour détecter les changements de statut
     const oldInfrastructure = await infrastructureService.findById(req.params.id);
-    
-    const infrastructure = await infrastructureService.update(req.params.id, {
-      ...req.body,
+    const b = req.body;
+
+    // Mapper le body vers les noms de colonnes Supabase (niveauFrequentation -> niveau_frequentation)
+    const updatePayload = {
+      ...(b.nom != null && { nom: b.nom }),
+      ...(b.type != null && { type: b.type }),
+      ...(b.description != null && { description: b.description }),
+      ...(b.localisation != null && { localisation: b.localisation }),
+      ...(b.contact != null && { contact: b.contact }),
+      ...(b.etat != null && { etat: b.etat }),
+      ...(b.niveauFrequentation != null && { niveau_frequentation: b.niveauFrequentation }),
+      ...(b.accessibilite != null && { accessibilite: b.accessibilite }),
+      ...(b.equipements != null && { equipements: Array.isArray(b.equipements) ? b.equipements : [] }),
+      ...(b.horaires != null && { horaires: b.horaires || {} }),
+      ...(b.photos != null && { photos: Array.isArray(b.photos) ? b.photos : [] }),
       updated_at: new Date().toISOString()
-    });
+    };
+
+    const infrastructure = await infrastructureService.update(req.params.id, updatePayload);
 
     if (!infrastructure) {
       return res.status(404).json({ message: 'Infrastructure non trouvée.' });
@@ -217,7 +230,14 @@ router.delete('/:id', auth, adminOnly, async (req, res) => {
   }
 });
 
-// Upload d'images pour une infrastructure
+// Mapping MIME -> extension (tous formats image: jpg, png, gif, webp, bmp, heic, heif, etc.)
+const MIME_TO_EXT_INFRA = {
+  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+  'image/webp': 'webp', 'image/bmp': 'bmp', 'image/heic': 'heic', 'image/heif': 'heif',
+};
+const VALID_EXT_INFRA = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']);
+
+// Upload d'images pour une infrastructure — accepte tous les formats image/*
 router.post('/upload-images', auth, upload.array('images', 10), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -229,15 +249,20 @@ router.post('/upload-images', auth, upload.array('images', 10), async (req, res)
 
     for (const file of req.files) {
       try {
-        const fileExt = file.originalname.split('.').pop();
+        let fileExt = (file.originalname.split('.').pop() || '').toLowerCase();
+        if (!VALID_EXT_INFRA.has(fileExt)) {
+          fileExt = MIME_TO_EXT_INFRA[file.mimetype] || 'jpg';
+        }
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `infrastructures/${fileName}`;
+
+        const contentType = file.mimetype || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
         // Essayer d'uploader vers Supabase Storage
         const { data, error } = await supabase.storage
           .from('infrastructures')
           .upload(filePath, file.buffer, {
-            contentType: file.mimetype,
+            contentType,
             upsert: false
           });
 

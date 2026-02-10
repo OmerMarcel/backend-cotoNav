@@ -67,8 +67,17 @@ class NotificationService {
   async sendPushToRoles({ roles, title, body, href = '', type }) {
     if (!firebaseAdmin) return { sent: 0, reason: 'firebase_admin_not_configured' }
 
+    console.log(`📱 Envoi notification push aux rôles: ${roles.join(', ')}`);
+    console.log(`📨 Titre: ${title}`);
+    console.log(`📄 Corps: ${body}`);
+
     const tokens = await this.getTokensForRoles(roles)
-    if (!tokens.length) return { sent: 0, reason: 'no_tokens' }
+    console.log(`🎯 Tokens trouvés: ${tokens.length} pour les rôles ${roles.join(', ')}`);
+    
+    if (!tokens.length) {
+      console.log(`❌ Aucun token FCM trouvé pour les rôles: ${roles.join(', ')}`);
+      return { sent: 0, reason: 'no_tokens' }
+    }
 
     // Multicast
     const resp = await firebaseAdmin.messaging().sendEachForMulticast({
@@ -83,11 +92,14 @@ class NotificationService {
       },
     })
 
+    console.log(`📊 Résultat envoi: ${resp.successCount} succès, ${resp.failureCount} échecs`);
+
     // Nettoyage des tokens invalides
     const invalidTokens = []
     resp.responses.forEach((r, idx) => {
       if (r.success) return
       const code = r.error?.code || ''
+      console.log(`❌ Token invalide ${idx}: ${code}`);
       if (
         code.includes('messaging/registration-token-not-registered') ||
         code.includes('messaging/invalid-registration-token')
@@ -97,6 +109,7 @@ class NotificationService {
     })
 
     if (invalidTokens.length) {
+      console.log(`🧹 Nettoyage de ${invalidTokens.length} tokens invalides`);
       await supabase.from('user_fcm_tokens').delete().in('token', invalidTokens)
     }
 

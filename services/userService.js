@@ -122,6 +122,12 @@ class UserService {
     return await bcrypt.compare(plainPassword, hashedPassword);
   }
 
+  async delete(id) {
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  }
+
   async findAll(filters = {}, pagination = {}) {
     let query = supabase.from('users').select('*', { count: 'exact' });
 

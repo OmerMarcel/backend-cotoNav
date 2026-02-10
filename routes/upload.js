@@ -20,14 +20,24 @@ const upload = multer({
   }
 });
 
-// Upload d'image unique (pour mobile)
+// Mapping MIME -> extension pour tous formats image (jpg, png, gif, webp, bmp, heic, etc.)
+const MIME_TO_EXT = {
+  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+  'image/webp': 'webp', 'image/bmp': 'bmp', 'image/heic': 'heic', 'image/heif': 'heif',
+};
+const VALID_EXT = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']);
+
+// Upload d'image unique (pour mobile) — accepte tout format image/*
 router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'Aucune image fournie.' });
     }
 
-    const fileExt = req.file.originalname.split('.').pop();
+    let fileExt = (req.file.originalname.split('.').pop() || '').toLowerCase();
+    if (!VALID_EXT.has(fileExt)) {
+      fileExt = MIME_TO_EXT[req.file.mimetype] || 'jpg';
+    }
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `infrastructures/${fileName}`;
 
@@ -36,7 +46,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       const { data, error } = await supabase.storage
         .from('infrastructures')
         .upload(filePath, req.file.buffer, {
-          contentType: req.file.mimetype,
+          contentType: req.file.mimetype || `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
           upsert: false
         });
 

@@ -9,7 +9,10 @@
     "create-admin": "node scripts/createAdmin.js",
     "create-super-admin": "node scripts/createSuperAdmin.js",
     "import-sample-data": "node scripts/importSampleData.js",
-    "test-config": "node scripts/testConfig.js"
+    "test-config": "node scripts/testConfig.js",
+    "test-fcm-tokens": "node scripts/test_fcm_tokens.js",
+    "fix-user-roles": "node scripts/fix_user_roles.js",
+    "extract-firebase-key": "node scripts/extract_firebase_key.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

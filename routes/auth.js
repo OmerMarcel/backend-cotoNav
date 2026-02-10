@@ -406,6 +406,132 @@ router.post(
   }
 );
 
+/**
+ * Vérifie un JWT Supabase et retourne { email, sub } ou null.
+ * Nécessite SUPABASE_JWT_SECRET dans .env (Supabase Dashboard → Settings → API → JWT Secret).
+ */
+function verifySupabaseToken(accessToken) {
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  if (!secret) {
+    console.warn("⚠️ SUPABASE_JWT_SECRET manquant. Auth Supabase désactivée.");
+    return null;
+  }
+  try {
+    const decoded = jwt.verify(accessToken, secret, { algorithms: ["HS256"] });
+    return { email: decoded.email || decoded.sub, sub: decoded.sub };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Inscription via Supabase (OTP vérifié côté app, puis envoi accessToken)
+router.post(
+  "/register/supabase",
+  [
+    body("email").isEmail().normalizeEmail(),
+    body("name").notEmpty().trim(),
+    body("accessToken").notEmpty(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+      const { email, name, accessToken } = req.body;
+      const emailLower = email.toLowerCase();
+
+      const payload = verifySupabaseToken(accessToken);
+      if (!payload || (payload.email && payload.email.toLowerCase() !== emailLower)) {
+        return res.status(401).json({ message: "Token Supabase invalide ou email incohérent." });
+      }
+
+      let user = await userService.findByEmail(emailLower);
+      if (user) {
+        const token = jwt.sign(
+          { userId: user.id, role: user.role },
+          process.env.JWT_SECRET || "secret_key_change_in_production",
+          { expiresIn: "24h" }
+        );
+        return res.status(200).json({
+          token,
+          user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
+        });
+      }
+
+      const nameParts = name.trim().split(" ");
+      const nom = nameParts[0] || name;
+      const prenom = nameParts.slice(1).join(" ").trim() || nom;
+
+      user = await userService.create({
+        nom,
+        prenom,
+        email: emailLower,
+        password: null,
+        authProvider: "supabase",
+        role: "citoyen",
+        actif: true,
+      });
+
+      const token = jwt.sign(
+        { userId: user.id, role: user.role },
+        process.env.JWT_SECRET || "secret_key_change_in_production",
+        { expiresIn: "24h" }
+      );
+      console.log(`✅ Compte Supabase créé: ${emailLower}`);
+      res.status(201).json({
+        token,
+        user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
+      });
+    } catch (err) {
+      console.error("Erreur register/supabase:", err);
+      res.status(500).json({ message: "Erreur serveur lors de l'inscription Supabase." });
+    }
+  }
+);
+
+// Connexion via Supabase (email+password côté app → accessToken envoyé ici)
+router.post(
+  "/login/supabase",
+  [body("accessToken").notEmpty()],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+      const payload = verifySupabaseToken(req.body.accessToken);
+      if (!payload || !payload.email) {
+        return res.status(401).json({ message: "Token Supabase invalide." });
+      }
+      const emailLower = payload.email.toLowerCase();
+      const user = await userService.findByEmail(emailLower);
+      if (!user) {
+        return res.status(401).json({ message: "Aucun compte associé à cet email. Inscrivez-vous d'abord." });
+      }
+      if (!user.actif) {
+        return res.status(403).json({ message: "Compte désactivé." });
+      }
+
+      await userService.update(user.id, { last_login: new Date().toISOString() });
+
+      const token = jwt.sign(
+        { userId: user.id, role: user.role },
+        process.env.JWT_SECRET || "secret_key_change_in_production",
+        { expiresIn: "24h" }
+      );
+      console.log(`✅ Connexion Supabase: ${emailLower}`);
+      res.json({
+        token,
+        user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
+      });
+    } catch (err) {
+      console.error("Erreur login/supabase:", err);
+      res.status(500).json({ message: "Erreur serveur lors de la connexion Supabase." });
+    }
+  }
+);
+
 // Inscription (pour mobile)
 router.post(
   "/register",
