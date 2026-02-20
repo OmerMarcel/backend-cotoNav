@@ -1,6 +1,7 @@
 const express = require("express");
 const propositionService = require("../services/propositionService");
 const infrastructureService = require("../services/infrastructureService");
+const administrativeLocationService = require("../services/administrativeLocationService");
 const { auth, requireStaff } = require("../middleware/auth");
 const notificationService = require("../services/notificationService");
 
@@ -16,7 +17,7 @@ router.post("/", auth, async (req, res) => {
       category: req.body.category,
       latitude: req.body.latitude,
       longitude: req.body.longitude,
-      address: req.body.address,
+      quartier: req.body.quartier,
       imagesCount: req.body.images?.length || 0,
     });
 
@@ -24,8 +25,8 @@ router.post("/", auth, async (req, res) => {
     const localisation = {
       type: "Point",
       coordinates: [req.body.longitude || 0, req.body.latitude || 0],
-      adresse: req.body.address || req.body.adresse || "",
-      quartier: req.body.quartier || "",
+      adresse: req.body.quartier || req.body.adresse || req.body.address || "",
+      quartier: req.body.quartier || req.body.address || req.body.adresse || "",
       commune: req.body.commune || "Cotonou",
     };
 
@@ -64,8 +65,35 @@ router.post("/", auth, async (req, res) => {
 
     console.log("✅ Proposition créée avec succès, ID:", proposition.id);
 
+    // 📍 NOUVEAU: Enregistrer la localisation administrative
+    let administrativeLocation = null;
+    if (req.body.latitude && req.body.longitude) {
+      console.log("📍 Enregistrement de la localisation administrative...");
+      const locResult =
+        await administrativeLocationService.recordContributionLocation(
+          proposition.id,
+          req.body.latitude,
+          req.body.longitude,
+        );
+
+      if (locResult.success) {
+        administrativeLocation = locResult.location;
+        console.log("✅ Localisation administrative enregistrée:", {
+          arrondissement: locResult.location.arrondissement_nom,
+          commune: locResult.location.commune_nom,
+          departement: locResult.location.departement_nom,
+        });
+      } else {
+        console.warn(
+          "⚠️ Erreur lors de l'enregistrement de la localisation:",
+          locResult.error,
+        );
+      }
+    }
+
     res.status(201).json({
       data: proposition,
+      administrativeLocation,
       message: "Proposition créée avec succès.",
     });
   } catch (error) {

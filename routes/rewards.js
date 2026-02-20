@@ -1,5 +1,6 @@
 const express = require("express");
 const rewardService = require("../services/rewardService");
+const notificationService = require("../services/notificationService");
 const { auth, requireStaff } = require("../middleware/auth");
 
 const router = express.Router();
@@ -105,6 +106,138 @@ router.get("/leaderboard", async (req, res) => {
     console.error("❌ Erreur récupération classement:", error);
     res.status(500).json({
       message: "Erreur lors de la récupération du classement.",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/rewards/exchange-config
+ * Obtenir la configuration d'echange (taux, seuil)
+ * Acces public
+ */
+router.get("/exchange-config", async (req, res) => {
+  try {
+    const config = rewardService.getExchangeConfig();
+
+    res.json({
+      status: "success",
+      data: config,
+    });
+  } catch (error) {
+    console.error("❌ Erreur configuration echange:", error);
+    res.status(500).json({
+      message: "Erreur lors de la recuperation de la configuration.",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/rewards/exchange
+ * Echange automatique de points en CFA (notification admin)
+ * Authentification requise
+ */
+router.post("/exchange", auth, async (req, res) => {
+  try {
+    const { points } = req.body || {};
+
+    const exchange = await rewardService.requestExchange({
+      userId: req.user.id,
+      points,
+    });
+
+    const userLabel = `${req.user.prenom || ""} ${req.user.nom || ""}`.trim();
+    const safeLabel = userLabel || req.user.email || "Utilisateur";
+
+    try {
+      await notificationService.notify({
+        type: "rewards_exchange",
+        title: "Nouvel echange de points",
+        message: `${safeLabel} a echange ${exchange.points_exchanged} pts = ${exchange.amount_cfa} F CFA`,
+        href: "/dashboard/utilisateurs",
+        targetRoles: ["super_admin", "admin"],
+      });
+    } catch (notifyError) {
+      console.warn("⚠️ Notification echange echouee:", notifyError.message);
+    }
+
+    res.json({
+      status: "success",
+      data: exchange,
+      config: rewardService.getExchangeConfig(),
+    });
+  } catch (error) {
+    const rawMessage = error?.message || "";
+    let message = "Erreur lors de l'echange de points.";
+
+    if (rawMessage.includes("minimum_points_not_met")) {
+      message = "Seuil minimum d'echange non atteint.";
+    } else if (rawMessage.includes("insufficient_points")) {
+      message = "Points insuffisants.";
+    } else if (rawMessage.includes("points_invalid")) {
+      message = "Nombre de points invalide.";
+    }
+
+    console.error("❌ Erreur echange points:", error);
+    res.status(400).json({ message, error: rawMessage || error.message });
+  }
+});
+
+/**
+ * GET /api/rewards/exchanges/my
+ * Lister ses propres echanges
+ * Authentification requise
+ */
+router.get("/exchanges/my", auth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const exchanges = await rewardService.getUserExchanges(req.user.id, {
+      page,
+      limit,
+    });
+
+    res.json({
+      status: "success",
+      data: exchanges.data,
+      pagination: exchanges.pagination,
+    });
+  } catch (error) {
+    console.error("❌ Erreur liste echanges utilisateur:", error);
+    res.status(500).json({
+      message: "Erreur lors de la recuperation des echanges.",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/rewards/exchanges
+ * Lister tous les echanges (admin)
+ * Authentification requise
+ */
+router.get("/exchanges", auth, requireStaff, async (req, res) => {
+  try {
+    const { page, limit, status, user_id: userId } = req.query;
+
+    const exchanges = await rewardService.getAllExchanges({
+      page,
+      limit,
+      status,
+      userId,
+    });
+
+    res.json({
+      status: "success",
+      data: exchanges.data,
+      pagination: exchanges.pagination,
+    });
+  } catch (error) {
+    console.error("❌ Erreur liste echanges admin:", error);
+    res.status(500).json({
+      message: "Erreur lors de la recuperation des echanges.",
       error: error.message,
     });
   }

@@ -118,13 +118,13 @@ CREATE TABLE IF NOT EXISTS levels (
 -- Données des niveaux
 INSERT INTO levels (level_id, level_name, points_required, description)
 VALUES
-    (1, 'Novice', 0, 'Bienvenue dans CotoNav ! Commencez à explorer et contribuer.'),
+    (1, 'Novice', 0, 'Bienvenue dans KutonouTché ! Commencez à explorer et contribuer.'),
     (2, 'Explorateur', 50, 'Vous commencez à bien connaître Cotonou !'),
     (3, 'Contributeur', 150, 'Vos contributions sont précieuses pour la communauté.'),
     (4, 'Expert Local', 300, 'Vous êtes une référence pour votre quartier !'),
     (5, 'Maître', 500, 'Votre connaissance de Cotonou est impressionnante !'),
-    (6, 'Légende', 800, 'Vous êtes une véritable légende de CotoNav !'),
-    (7, 'Ambassadeur', 1200, 'Ambassadeur officiel de CotoNav et de Cotonou !'),
+    (6, 'Légende', 800, 'Vous êtes une véritable légende de KutonouTché !'),
+    (7, 'Ambassadeur', 1200, 'Ambassadeur officiel de KutonouTché et de Cotonou !'),
     (8, 'Champion', 1800, 'Champion incontesté de la communauté !'),
     (9, 'Titan', 2500, 'Titan de la contribution citoyenne !'),
     (10, 'Héros de Cotonou', 3500, 'Le héros dont Cotonou a besoin !')
@@ -399,12 +399,14 @@ CREATE TRIGGER avis_contribution_trigger
 CREATE OR REPLACE FUNCTION trigger_proposition_contribution()
 RETURNS TRIGGER AS $$
 BEGIN
-    PERFORM record_contribution(
-        NEW.propose_par,
-        'proposition',
-        NEW.id,
-        jsonb_build_object('type', NEW.type)
-    );
+    IF NEW.statut = 'approuve' AND OLD.statut IS DISTINCT FROM NEW.statut THEN
+        PERFORM record_contribution(
+            NEW.propose_par,
+            'proposition',
+            NEW.id,
+            jsonb_build_object('type', NEW.type)
+        );
+    END IF;
     
     RETURN NEW;
 END;
@@ -412,7 +414,7 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS proposition_contribution_trigger ON propositions;
 CREATE TRIGGER proposition_contribution_trigger
-    AFTER INSERT ON propositions
+    AFTER UPDATE OF statut ON propositions
     FOR EACH ROW
     EXECUTE FUNCTION trigger_proposition_contribution();
 
@@ -420,12 +422,14 @@ CREATE TRIGGER proposition_contribution_trigger
 CREATE OR REPLACE FUNCTION trigger_signalement_contribution()
 RETURNS TRIGGER AS $$
 BEGIN
-    PERFORM record_contribution(
-        NEW.signale_par,
-        'signalement',
-        NEW.id,
-        jsonb_build_object('type', NEW.type)
-    );
+    IF NEW.statut = 'resolu' AND OLD.statut IS DISTINCT FROM NEW.statut THEN
+        PERFORM record_contribution(
+            NEW.signale_par,
+            'signalement',
+            NEW.id,
+            jsonb_build_object('type', NEW.type)
+        );
+    END IF;
     
     RETURN NEW;
 END;
@@ -433,7 +437,7 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS signalement_contribution_trigger ON signalements;
 CREATE TRIGGER signalement_contribution_trigger
-    AFTER INSERT ON signalements
+    AFTER UPDATE OF statut ON signalements
     FOR EACH ROW
     EXECUTE FUNCTION trigger_signalement_contribution();
 

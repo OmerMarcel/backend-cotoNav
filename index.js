@@ -77,6 +77,11 @@ app.use("/api/profile", require("./routes/profile")); // Profils utilisateurs
 app.use("/api/notifications", require("./routes/notifications")); // Push web (FCM)
 app.use("/api/avis", require("./routes/avis")); // Avis et commentaires
 app.use("/api/rewards", require("./routes/rewards")); // Système de récompense
+app.use("/api/wallet", require("./routes/wallet")); // Gestion des portefeuilles
+app.use(
+  "/api/administrative-location",
+  require("./routes/administrative-location"),
+); // Localisation administrative
 
 const PORT = process.env.PORT || 5000;
 

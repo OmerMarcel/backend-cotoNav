@@ -118,13 +118,13 @@ CREATE TABLE IF NOT EXISTS levels (
 -- Insérer les niveaux par défaut (si la table est vide)
 INSERT INTO levels (level_id, level_name, points_required, description)
 VALUES
-    (1, 'Novice', 0, 'Bienvenue dans CotoNav ! Commencez à explorer et contribuer.'),
+    (1, 'Novice', 0, 'Bienvenue dans KutonouTché ! Commencez à explorer et contribuer.'),
     (2, 'Explorateur', 50, 'Vous commencez à bien connaître Cotonou !'),
     (3, 'Contributeur', 150, 'Vos contributions sont précieuses pour la communauté.'),
     (4, 'Expert Local', 300, 'Vous êtes une référence pour votre quartier !'),
     (5, 'Maître', 500, 'Votre connaissance de Cotonou est impressionnante !'),
-    (6, 'Légende', 800, 'Vous êtes une véritable légende de CotoNav !'),
-    (7, 'Ambassadeur', 1200, 'Ambassadeur officiel de CotoNav et de Cotonou !'),
+    (6, 'Légende', 800, 'Vous êtes une véritable légende de KutonouTché !'),
+    (7, 'Ambassadeur', 1200, 'Ambassadeur officiel de KutonouTché et de Cotonou !'),
     (8, 'Champion', 1800, 'Champion incontesté de la communauté !'),
     (9, 'Titan', 2500, 'Titan de la contribution citoyenne !'),
     (10, 'Héros de Cotonou', 3500, 'Le héros dont Cotonou a besoin !')

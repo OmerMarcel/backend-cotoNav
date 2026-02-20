@@ -1,21 +1,24 @@
-const supabase = require('../config/supabase');
-const infrastructureService = require('./infrastructureService');
+const supabase = require("../config/supabase");
+const infrastructureService = require("./infrastructureService");
 
 class AvisService {
   async findAll(filters = {}, pagination = {}) {
     try {
       let query = supabase
-        .from('avis')
-        .select('*, infrastructure:infrastructures(*), utilisateur:users!utilisateur_id(id, nom, prenom, email, avatar)', { count: 'exact' });
+        .from("avis")
+        .select(
+          "*, infrastructure:infrastructures(*), utilisateur:users!utilisateur_id(id, nom, prenom, email, avatar)",
+          { count: "exact" },
+        );
 
       if (filters.infrastructure_id) {
-        query = query.eq('infrastructure_id', filters.infrastructure_id);
+        query = query.eq("infrastructure_id", filters.infrastructure_id);
       }
       if (filters.utilisateur_id) {
-        query = query.eq('utilisateur_id', filters.utilisateur_id);
+        query = query.eq("utilisateur_id", filters.utilisateur_id);
       }
       if (filters.approuve !== undefined) {
-        query = query.eq('approuve', filters.approuve);
+        query = query.eq("approuve", filters.approuve);
       }
 
       if (pagination.page && pagination.limit) {
@@ -24,7 +27,7 @@ class AvisService {
         query = query.range(from, to);
       }
 
-      query = query.order('created_at', { ascending: false });
+      query = query.order("created_at", { ascending: false });
 
       const { data, error, count } = await query;
 
@@ -33,11 +36,13 @@ class AvisService {
       }
 
       // Transformer les données pour Flutter
-      const transformedData = (data || []).map(avis => this.transformToFlutterFormat(avis));
+      const transformedData = (data || []).map((avis) =>
+        this.transformToFlutterFormat(avis),
+      );
 
-      return { data: transformedData, count: transformedData.length };
+      return { data: transformedData, count: count || 0 };
     } catch (error) {
-      console.error('❌ Erreur dans avisService.findAll:', error);
+      console.error("❌ Erreur dans avisService.findAll:", error);
       throw error;
     }
   }
@@ -45,9 +50,11 @@ class AvisService {
   async findById(id) {
     try {
       const { data, error } = await supabase
-        .from('avis')
-        .select('*, infrastructure:infrastructures(*), utilisateur:users!utilisateur_id(id, nom, prenom, email, avatar)')
-        .eq('id', id)
+        .from("avis")
+        .select(
+          "*, infrastructure:infrastructures(*), utilisateur:users!utilisateur_id(id, nom, prenom, email, avatar)",
+        )
+        .eq("id", id)
         .single();
 
       if (error) {
@@ -56,7 +63,7 @@ class AvisService {
 
       return this.transformToFlutterFormat(data);
     } catch (error) {
-      console.error('❌ Erreur dans avisService.findById:', error);
+      console.error("❌ Erreur dans avisService.findById:", error);
       throw error;
     }
   }
@@ -65,10 +72,10 @@ class AvisService {
     try {
       // Vérifier que l'utilisateur n'a pas déjà laissé un avis pour cette infrastructure
       const existing = await supabase
-        .from('avis')
-        .select('id')
-        .eq('infrastructure_id', avisData.infrastructure_id)
-        .eq('utilisateur_id', avisData.utilisateur_id)
+        .from("avis")
+        .select("id")
+        .eq("infrastructure_id", avisData.infrastructure_id)
+        .eq("utilisateur_id", avisData.utilisateur_id)
         .single();
 
       if (existing.data) {
@@ -81,7 +88,7 @@ class AvisService {
       }
 
       const { data, error } = await supabase
-        .from('avis')
+        .from("avis")
         .insert({
           infrastructure_id: avisData.infrastructure_id,
           utilisateur_id: avisData.utilisateur_id,
@@ -90,7 +97,9 @@ class AvisService {
           photos: avisData.photos || [],
           approuve: avisData.approuve !== undefined ? avisData.approuve : true,
         })
-        .select('*, infrastructure:infrastructures(*), utilisateur:users!utilisateur_id(id, nom, prenom, email, avatar)')
+        .select(
+          "*, infrastructure:infrastructures(*), utilisateur:users!utilisateur_id(id, nom, prenom, email, avatar)",
+        )
         .single();
 
       if (error) {
@@ -102,7 +111,7 @@ class AvisService {
 
       return this.transformToFlutterFormat(data);
     } catch (error) {
-      console.error('❌ Erreur dans avisService.create:', error);
+      console.error("❌ Erreur dans avisService.create:", error);
       throw error;
     }
   }
@@ -110,10 +119,12 @@ class AvisService {
   async update(id, updates) {
     try {
       const { data, error } = await supabase
-        .from('avis')
+        .from("avis")
         .update(updates)
-        .eq('id', id)
-        .select('*, infrastructure:infrastructures(*), utilisateur:users!utilisateur_id(id, nom, prenom, email, avatar)')
+        .eq("id", id)
+        .select(
+          "*, infrastructure:infrastructures(*), utilisateur:users!utilisateur_id(id, nom, prenom, email, avatar)",
+        )
         .single();
 
       if (error) {
@@ -124,17 +135,14 @@ class AvisService {
 
       return this.transformToFlutterFormat(data);
     } catch (error) {
-      console.error('❌ Erreur dans avisService.update:', error);
+      console.error("❌ Erreur dans avisService.update:", error);
       throw error;
     }
   }
 
   async delete(id) {
     try {
-      const { error } = await supabase
-        .from('avis')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("avis").delete().eq("id", id);
 
       if (error) {
         throw error;
@@ -144,7 +152,7 @@ class AvisService {
 
       return true;
     } catch (error) {
-      console.error('❌ Erreur dans avisService.delete:', error);
+      console.error("❌ Erreur dans avisService.delete:", error);
       throw error;
     }
   }
@@ -161,20 +169,20 @@ class AvisService {
       infrastructureId: avis.infrastructure_id,
       userId: avis.utilisateur_id,
       note: avis.note,
-      commentaire: avis.commentaire || '',
+      commentaire: avis.commentaire || "",
       photos: photos,
       approuve: avis.approuve !== false,
       createdAt: avis.created_at || new Date().toISOString(),
       // Informations utilisateur
       utilisateur: {
         id: utilisateur.id,
-        nom: utilisateur.nom || '',
-        prenom: utilisateur.prenom || '',
-        email: utilisateur.email || '',
+        nom: utilisateur.nom || "",
+        prenom: utilisateur.prenom || "",
+        email: utilisateur.email || "",
         avatar: utilisateur.avatar,
       },
       // Garder aussi les champs originaux pour compatibilité
-      ...avis
+      ...avis,
     };
   }
 }

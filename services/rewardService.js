@@ -5,6 +5,23 @@ const supabase = require("../config/supabase");
  * Gère les points, niveaux et badges des utilisateurs
  */
 class RewardService {
+  getExchangeConfig() {
+    const ratePerPoint = Number.parseFloat(
+      process.env.EXCHANGE_RATE_PER_POINT || "0.5",
+    );
+    const minPoints = Number.parseInt(
+      process.env.MIN_EXCHANGE_POINTS || "300",
+      10,
+    );
+    const minAmountCfa = Math.round(minPoints * ratePerPoint * 100) / 100;
+
+    return {
+      rate_per_point: ratePerPoint,
+      min_points: minPoints,
+      min_amount_cfa: minAmountCfa,
+    };
+  }
+
   /**
    * Enregistrer une contribution et attribuer des points
    * @param {Object} params - Paramètres de la contribution
@@ -166,6 +183,124 @@ class RewardService {
   }
 
   /**
+   * Demander un echange de points (auto + notification admin)
+   * @param {Object} params
+   * @param {string} params.userId
+   * @param {number} params.points
+   * @returns {Promise<Object>} Resultat d'echange
+   */
+  async requestExchange({ userId, points }) {
+    try {
+      const config = this.getExchangeConfig();
+      const requestedPoints = Number.parseInt(points, 10);
+
+      if (!Number.isFinite(requestedPoints) || requestedPoints <= 0) {
+        throw new Error("points_invalid");
+      }
+
+      const { data, error } = await supabase.rpc("request_points_exchange", {
+        p_user_id: userId,
+        p_points: requestedPoints,
+        p_rate: config.rate_per_point,
+        p_min_points: config.min_points,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("❌ Erreur dans requestExchange:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lister les echanges d'un utilisateur
+   * @param {string} userId
+   * @param {Object} pagination
+   * @returns {Promise<Object>}
+   */
+  async getUserExchanges(userId, pagination = { page: 1, limit: 20 }) {
+    try {
+      const { page, limit } = pagination;
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+
+      const { data, error, count } = await supabase
+        .from("reward_exchanges")
+        .select("*", { count: "exact" })
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        data: data || [],
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          pages: Math.ceil((count || 0) / limit),
+        },
+      };
+    } catch (error) {
+      console.error("❌ Erreur dans getUserExchanges:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lister tous les echanges (admin)
+   * @param {Object} options
+   * @returns {Promise<Object>}
+   */
+  async getAllExchanges(options = {}) {
+    try {
+      const page = Number.parseInt(options.page || 1, 10);
+      const limit = Number.parseInt(options.limit || 50, 10);
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+
+      let query = supabase
+        .from("reward_exchanges")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (options.status) {
+        query = query.eq("status", options.status);
+      }
+      if (options.userId) {
+        query = query.eq("user_id", options.userId);
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        data: data || [],
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          pages: Math.ceil((count || 0) / limit),
+        },
+      };
+    } catch (error) {
+      console.error("❌ Erreur dans getAllExchanges:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtenir l'historique des contributions d'un utilisateur
    * @param {string} userId - ID de l'utilisateur
    * @param {Object} pagination - Pagination { page, limit }
@@ -201,6 +336,15 @@ class RewardService {
       console.error("❌ Erreur dans getUserContributions:", error);
       throw error;
     }
+  }
+
+  /**
+   * Alias pour compatibilité avec les routes existantes
+   * @param {Object} params - { userId, page, limit }
+   * @returns {Promise<Object>} Historique des contributions
+   */
+  async getUserContributionHistory({ userId, page = 1, limit = 20 }) {
+    return this.getUserContributions(userId, { page, limit });
   }
 
   /**
