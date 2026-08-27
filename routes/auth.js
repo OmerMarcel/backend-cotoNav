@@ -234,6 +234,7 @@ router.post(
           prenom: user.prenom,
           email: user.email,
           role: user.role,
+          avatar: user.avatar,
         },
       });
     } catch (error) {
@@ -294,6 +295,7 @@ router.post(
           prenom: user.prenom,
           email: user.email,
           role: user.role,
+          avatar: user.avatar,
         },
       });
     } catch (error) {
@@ -455,7 +457,7 @@ router.post(
         );
         return res.status(200).json({
           token,
-          user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
+          user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role, avatar: user.avatar },
         });
       }
 
@@ -481,7 +483,7 @@ router.post(
       console.log(`✅ Compte Supabase créé: ${emailLower}`);
       res.status(201).json({
         token,
-        user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
+        user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role, avatar: user.avatar },
       });
     } catch (err) {
       console.error("Erreur register/supabase:", err);
@@ -523,7 +525,7 @@ router.post(
       console.log(`✅ Connexion Supabase: ${emailLower}`);
       res.json({
         token,
-        user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
+        user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role, avatar: user.avatar },
       });
     } catch (err) {
       console.error("Erreur login/supabase:", err);
@@ -584,6 +586,7 @@ router.post(
             prenom: existingUser.prenom,
             email: existingUser.email,
             role: existingUser.role,
+            avatar: existingUser.avatar,
           },
         });
       }
@@ -620,6 +623,7 @@ router.post(
           prenom: user.prenom,
           email: user.email,
           role: user.role,
+          avatar: user.avatar,
         },
       });
     } catch (error) {
