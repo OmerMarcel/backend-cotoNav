@@ -26,16 +26,29 @@ class InfrastructureService {
       if (val) {
         let entry = val;
         if (typeof val === 'object' && val !== null) {
+          const isOuvert = val.ouvert === true || val.ouvert === 'true' || (val.ouvert === undefined && val.open !== false && val.open !== 'false');
           const debut = val.debut || val.open || val.start || '08:00';
           const fin = val.fin || val.close || val.end || '18:00';
-          const ouvert = val.ouvert !== undefined ? val.ouvert : (val.open !== false);
           entry = {
             ...val,
-            debut,
-            fin,
-            open: debut,
-            close: fin,
-            ouvert
+            debut: isOuvert ? debut : '',
+            fin: isOuvert ? fin : '',
+            open: isOuvert ? debut : null,
+            close: isOuvert ? fin : null,
+            is_open: isOuvert,
+            ouvert: isOuvert,
+            text: isOuvert ? `${debut} - ${fin}` : 'Fermé'
+          };
+        } else if (typeof val === 'string') {
+          const isFerme = val.toLowerCase().includes('fermé') || val.toLowerCase().includes('ferme') || val.toLowerCase().includes('closed');
+          entry = {
+            debut: isFerme ? '' : val,
+            fin: '',
+            open: isFerme ? null : val,
+            close: null,
+            is_open: !isFerme,
+            ouvert: !isFerme,
+            text: isFerme ? 'Fermé' : val
           };
         }
         normalizedHoraires[fr] = entry;
