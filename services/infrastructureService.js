@@ -9,7 +9,40 @@ class InfrastructureService {
     const localisation = infra.localisation || {};
     const coordinates = localisation.coordinates || [];
     const photos = infra.photos || infra.images || [];
-    const horaires = infra.horaires || infra.openingHours || {};
+    const rawHoraires = infra.horaires || infra.openingHours || infra.opening_hours || {};
+    const normalizedHoraires = { ...rawHoraires };
+    const FR_TO_EN = {
+      lundi: 'monday',
+      mardi: 'tuesday',
+      mercredi: 'wednesday',
+      jeudi: 'thursday',
+      vendredi: 'friday',
+      samedi: 'saturday',
+      dimanche: 'sunday'
+    };
+
+    Object.entries(FR_TO_EN).forEach(([fr, en]) => {
+      const val = rawHoraires[fr] || rawHoraires[en];
+      if (val) {
+        let entry = val;
+        if (typeof val === 'object' && val !== null) {
+          const debut = val.debut || val.open || val.start || '08:00';
+          const fin = val.fin || val.close || val.end || '18:00';
+          const ouvert = val.ouvert !== undefined ? val.ouvert : (val.open !== false);
+          entry = {
+            ...val,
+            debut,
+            fin,
+            open: debut,
+            close: fin,
+            ouvert
+          };
+        }
+        normalizedHoraires[fr] = entry;
+        normalizedHoraires[en] = entry;
+      }
+    });
+
     const equipements = infra.equipements || infra.equipments || [];
     
     // S'assurer que localisation est toujours un objet avec une structure valide
@@ -31,8 +64,8 @@ class InfrastructureService {
       address: safeLocalisation.adresse,
       images: photos,
       photos: photos,
-      opening_hours: horaires,
-      horaires: horaires,
+      opening_hours: normalizedHoraires,
+      horaires: normalizedHoraires,
       equipements,
       phone: infra.contact?.telephone || null,
       website: infra.contact?.website || null,
