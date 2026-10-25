@@ -2,6 +2,7 @@ const express = require("express");
 const signalementService = require("../services/signalementService");
 const { auth, requireStaff } = require("../middleware/auth");
 const notificationService = require("../services/notificationService");
+const auditService = require("../services/auditService");
 
 const router = express.Router();
 
@@ -24,6 +25,21 @@ router.post("/", auth, async (req, res) => {
       description,
       photos: photos || [],
       signalePar: req.user.id,
+    });
+
+    // 📝 Traçabilité Audit
+    await auditService.log({
+      user_id: req.user.id,
+      user_role: req.user.role || "citoyen",
+      action: "SIGNALEMENT_CREATED",
+      resource_type: "signalements",
+      resource_id: signalement.id || signalement._id,
+      details: {
+        infrastructureId,
+        type,
+        description,
+      },
+      ip_address: req.ip || req.connection?.remoteAddress,
     });
 
     res.status(201).json({ signalement });
@@ -165,6 +181,20 @@ router.patch("/:id", auth, requireStaff, async (req, res) => {
         );
       }
     }
+
+    // 📝 Traçabilité Audit
+    await auditService.log({
+      user_id: req.user.id,
+      user_role: req.user.role || "staff",
+      action: `SIGNALEMENT_${statut.toUpperCase()}`,
+      resource_type: "signalements",
+      resource_id: signalementId,
+      details: {
+        statut,
+        commentaire: commentaireTraitement || "",
+      },
+      ip_address: req.ip || req.connection?.remoteAddress,
+    });
 
     res.json(signalement);
   } catch (error) {

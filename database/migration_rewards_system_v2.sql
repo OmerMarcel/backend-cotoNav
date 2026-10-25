@@ -507,6 +507,11 @@ GROUP BY
 
 ALTER TABLE reward_contributions ENABLE ROW LEVEL SECURITY;
 
+-- Supprimer les anciennes politiques si elles existent déjà pour éviter l'erreur 42710
+DROP POLICY IF EXISTS "Utilisateurs voient leurs contributions" ON reward_contributions;
+DROP POLICY IF EXISTS "Admins voient toutes les contributions" ON reward_contributions;
+DROP POLICY IF EXISTS "Système insère les contributions" ON reward_contributions;
+
 -- Les utilisateurs voient leurs propres contributions
 CREATE POLICY "Utilisateurs voient leurs contributions"
     ON reward_contributions FOR SELECT

@@ -4,6 +4,7 @@ const infrastructureService = require("../services/infrastructureService");
 const administrativeLocationService = require("../services/administrativeLocationService");
 const { auth, requireStaff } = require("../middleware/auth");
 const notificationService = require("../services/notificationService");
+const auditService = require("../services/auditService");
 
 const router = express.Router();
 
@@ -64,6 +65,21 @@ router.post("/", auth, async (req, res) => {
     const proposition = await propositionService.create(propositionData);
 
     console.log("✅ Proposition créée avec succès, ID:", proposition.id);
+
+    // 📝 Traçabilité Audit
+    await auditService.log({
+      user_id: req.user.id,
+      user_role: req.user.role || "citoyen",
+      action: "PROPOSITION_CREATED",
+      resource_type: "propositions",
+      resource_id: proposition.id,
+      details: {
+        nom: propositionData.nom,
+        type: propositionData.type,
+        commune: localisation.commune,
+      },
+      ip_address: req.ip || req.connection?.remoteAddress,
+    });
 
     // 📍 NOUVEAU: Enregistrer la localisation administrative
     let administrativeLocation = null;
@@ -253,6 +269,21 @@ router.post("/:id/approuver", auth, requireStaff, async (req, res) => {
 
     console.log("✅ Proposition mise à jour avec statut approuve");
 
+    // 📝 Traçabilité Audit
+    await auditService.log({
+      user_id: req.user.id,
+      user_role: req.user.role || "admin",
+      action: "PROPOSITION_VALIDATED",
+      resource_type: "propositions",
+      resource_id: req.params.id,
+      details: {
+        infrastructure_id: infrastructure.id,
+        nom: infrastructureData.nom,
+        type: infrastructureData.type,
+      },
+      ip_address: req.ip || req.connection?.remoteAddress,
+    });
+
     // Envoyer une notification push aux utilisateurs (citoyens) pour nouvelle infrastructure mise en ligne
     try {
       await notificationService.sendPushOnly({
@@ -296,6 +327,20 @@ router.post("/:id/rejeter", auth, requireStaff, async (req, res) => {
     if (!proposition) {
       return res.status(404).json({ message: "Proposition non trouvée." });
     }
+
+    // 📝 Traçabilité Audit
+    await auditService.log({
+      user_id: req.user.id,
+      user_role: req.user.role || "admin",
+      action: "PROPOSITION_REJECTED",
+      resource_type: "propositions",
+      resource_id: req.params.id,
+      details: {
+        nom: proposition.nom || proposition.name,
+        motif: req.body.commentaire || "",
+      },
+      ip_address: req.ip || req.connection?.remoteAddress,
+    });
 
     // Envoyer une notification push aux utilisateurs (citoyens) pour proposition rejetée
     try {

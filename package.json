@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
+    "sync-infrastructures": "node scripts/syncAllInfrastructures.js",
     "create-admin": "node scripts/createAdmin.js",
     "create-super-admin": "node scripts/createSuperAdmin.js",
     "import-sample-data": "node scripts/importSampleData.js",

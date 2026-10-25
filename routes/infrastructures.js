@@ -27,13 +27,20 @@ const upload = multer({
 router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    let limit;
+    if (req.query.limit === 'all' || req.query.all === 'true') {
+      limit = 'all';
+    } else if (req.query.limit) {
+      limit = parseInt(req.query.limit);
+    } else {
+      limit = req.query.mobile ? 20 : 1000;
+    }
 
     const filters = {};
     if (req.query.type) filters.type = req.query.type;
     if (req.query.category) filters.type = req.query.category; // Alias pour compatibilité Flutter
     if (req.query.quartier) filters.quartier = req.query.quartier;
-    if (req.query.valide !== undefined) filters.valide = req.query.valide === 'true';
+    if (req.query.valide !== undefined && req.query.valide !== '') filters.valide = req.query.valide === 'true';
     if (req.query.etat) filters.etat = req.query.etat;
     if (req.query.q) filters.searchQuery = req.query.q; // Recherche par texte
     
@@ -42,9 +49,14 @@ router.get('/', async (req, res) => {
     const longitude = req.query.longitude ? parseFloat(req.query.longitude) : null;
     const radius = req.query.radius ? parseFloat(req.query.radius) : null;
 
+    // Déterminer si la requête vient du dashboard (admin) ou de l'app mobile
+    // Le dashboard n'envoie pas de paramètre 'mobile', ne filtre pas par valide par défaut
+    const isDashboard = !req.query.mobile && !req.query.latitude;
+
     const { data: infrastructures, count } = await infrastructureService.findAll(
       filters,
-      { page, limit, latitude, longitude, radius }
+      { page, limit, latitude, longitude, radius },
+      isDashboard
     );
 
     // Format compatible avec Flutter (peut accepter soit data soit directement la liste)
@@ -58,9 +70,9 @@ router.get('/', async (req, res) => {
       infrastructures, // Pour compatibilité dashboard
       pagination: {
         page,
-        limit,
+        limit: limit === 'all' ? count : limit,
         total: count,
-        pages: Math.ceil(count / limit)
+        pages: limit === 'all' ? 1 : Math.ceil(count / (limit || 1))
       }
     });
   } catch (error) {

@@ -63,7 +63,7 @@ class InfrastructureService {
     return R * c; // Distance en km
   }
 
-  async findAll(filters = {}, pagination = {}) {
+  async findAll(filters = {}, pagination = {}, isDashboard = false) {
     let query = supabase.from('infrastructures').select('*, cree_par:users!cree_par(*), valide_par:users!valide_par(*)', { count: 'exact' });
 
     if (filters.type) {
@@ -86,18 +86,21 @@ class InfrastructureService {
       // On récupère toutes les données et on filtre en mémoire
     }
 
-    // Par défaut, ne retourner que les infrastructures validées
-    if (filters.valide === undefined) {
+    // Pour le dashboard (admin), on affiche TOUTES les infrastructures (validées et non validées)
+    // Pour l'app mobile/publique, on ne retourne que les infrastructures validées
+    if (filters.valide === undefined && !isDashboard) {
       query = query.eq('valide', true);
     }
+    // Si c'est le dashboard et qu'aucun filtre valide n'est spécifié, on ne filtre pas → tout afficher
 
-    if (pagination.page && pagination.limit) {
+    // Appliquer l'ordre avant la pagination
+    query = query.order('created_at', { ascending: false });
+
+    if (pagination.page && pagination.limit && pagination.limit !== 'all' && pagination.limit > 0) {
       const from = (pagination.page - 1) * pagination.limit;
       const to = from + pagination.limit - 1;
       query = query.range(from, to);
     }
-
-    query = query.order('created_at', { ascending: false });
 
     let data, error, count;
     try {
@@ -146,7 +149,10 @@ class InfrastructureService {
       });
     }
 
-    return { data: transformedData, count: transformedData.length };
+    return { 
+      data: transformedData, 
+      count: (count !== undefined && count !== null) ? count : transformedData.length 
+    };
   }
 
   async findById(id) {
