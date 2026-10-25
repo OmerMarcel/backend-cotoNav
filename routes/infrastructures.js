@@ -140,19 +140,41 @@ router.put('/:id', auth, adminOnly, async (req, res) => {
     const oldInfrastructure = await infrastructureService.findById(req.params.id);
     const b = req.body;
 
-    // Mapper le body vers les noms de colonnes Supabase (niveauFrequentation -> niveau_frequentation)
+    let localisation = b.localisation;
+    if (localisation) {
+      const coords = localisation.coordinates || [
+        parseFloat(String(localisation.longitude || b.longitude || 0).replace(',', '.')),
+        parseFloat(String(localisation.latitude || b.latitude || 0).replace(',', '.'))
+      ];
+      localisation = {
+        type: 'Point',
+        coordinates: coords,
+        latitude: coords[1],
+        longitude: coords[0],
+        adresse: localisation.adresse || localisation.address || '',
+        quartier: localisation.quartier || '',
+        commune: localisation.commune || 'Cotonou'
+      };
+    }
+
+    // Mapper le body vers les noms de colonnes Supabase
     const updatePayload = {
-      ...(b.nom != null && { nom: b.nom }),
-      ...(b.type != null && { type: b.type }),
+      ...((b.nom || b.name) != null && { nom: b.nom || b.name }),
+      ...((b.type || b.category) != null && { type: b.type || b.category }),
       ...(b.description != null && { description: b.description }),
-      ...(b.localisation != null && { localisation: b.localisation }),
+      ...(localisation != null && { localisation }),
       ...(b.contact != null && { contact: b.contact }),
       ...(b.etat != null && { etat: b.etat }),
-      ...(b.niveauFrequentation != null && { niveau_frequentation: b.niveauFrequentation }),
+      ...((b.niveauFrequentation || b.niveau_frequentation) != null && {
+        niveau_frequentation: b.niveauFrequentation || b.niveau_frequentation
+      }),
       ...(b.accessibilite != null && { accessibilite: b.accessibilite }),
       ...(b.equipements != null && { equipements: Array.isArray(b.equipements) ? b.equipements : [] }),
       ...(b.horaires != null && { horaires: b.horaires || {} }),
-      ...(b.photos != null && { photos: Array.isArray(b.photos) ? b.photos : [] }),
+      ...((b.photos || b.images) != null && {
+        photos: Array.isArray(b.photos) ? b.photos : (Array.isArray(b.images) ? b.images : [])
+      }),
+      ...(b.valide !== undefined && { valide: b.valide }),
       updated_at: new Date().toISOString()
     };
 
@@ -198,7 +220,12 @@ router.put('/:id', auth, adminOnly, async (req, res) => {
       }
     }
 
-    res.json(infrastructure);
+    res.json({
+      success: true,
+      message: 'Infrastructure mise à jour avec succès.',
+      data: infrastructure,
+      infrastructure
+    });
   } catch (error) {
     res.status(400).json({ message: 'Erreur lors de la mise à jour.', error: error.message });
   }
